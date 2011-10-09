@@ -1,0 +1,628 @@
+<html>
+<head>
+<title>Kuleczki</title>
+<!-- canvas emulation for Internet Explorer -->
+<!--[if IE]><script type="text/javascript" src="excanvas.js"></script><![endif]-->
+<script type="text/javascript">
+<!-- //
+/* load canvas.text.js (emulation of ctx.fillText) only when needed */
+if(!document.createElement('canvas').getContext('2d').fillText) {
+    document.write('<script type="text/javascript" src="canvas.text.js"></s' + 'cript>');
+}
+// -->
+</script>
+<script type='text/javascript'>
+<!-- //
+/* Simulation of ellastic balls collision in 2 dimensions.
+ *
+ * Simulation is independent of frame and is very robust.
+ * It do not use time-step for collision detection, but
+ * determines them using analitic formulas ahead of time.
+ * Simulation tries to show actuall positions in real-time,
+ * regardless of rendering speed and time-step size.
+ *
+ * Additionally to improve scalability with respect to the ball numbers,
+ * code uses lots priority queues to manage nearest time of collision.
+ *
+ * After collision (beetween balls or ball and wall), only nacassary times and balls
+ * (and respecting priority queues) are updated, effectivly makeing processing
+ * a O(n*log(n)) time-complexity problem (per collision).
+ *
+ * Simulation do not use any space partitioning data-structures
+ * (like quadtree, bounding volume/area hiearchy or binary space partitioning).
+ * It may use such data structures in the future.
+ *
+ * Author: Witold Baryluk
+ *
+ * Copyright: Witold Baryluk, 2011
+ * License: GPL version 3 or newer.
+ * If you want to use, modify or distributed this or modified code,
+ * under other licene please contact author.
+ */
+
+var min_r = 20.0;
+var max_r = 100.0;
+var max_v = 50.0;
+
+// Returns random ball. It will have mass proportional to the area, and color proportional to the mass.
+function Kulka() {
+	var r = {
+		position: [600.0*(2.0*Math.random()-1.0), 0.0*300.0*(2.0*Math.random()-1.0)],
+		velocity: [max_v*(2.0*Math.random()-1.0), 0.0*max_v*(2.0*Math.random()-1.0)],
+		radius: min_r + (max_r-min_r)*Math.random(),
+		mass: 1.0, //Math.random(),
+		color: 'rgb(' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ')',
+		friction: Math.random(),
+		collisions: 0,
+		active: true,
+		needs_recalc: true
+	};
+	r.mass = r.radius*r.radius;
+	var minimal_mass = min_r*min_r;
+	var mass_diff = max_r*max_r - minimal_mass;
+	var c = Math.pow((r.mass-minimal_mass)/mass_diff, 1.0/1.21); // normalization of color + pseudo-gamma
+	var c = Math.round(255*c);
+	r.color = 'rgb(' + 0 + ',' + (255-c) + ',' + c + ')';
+	return r;
+}
+
+/* Parameters of simulation and global variables (awfull, I know) */
+
+var speed = 1.0/10;
+var K = 30; // number of balls
+var have_walls = true;
+var show_next_collision = true;
+var draw_interline = false; // black line connecting balls which will collide
+var draw_number = false; // show a number of the ball inside it
+var g = 10.1; // gravitation acceleration
+
+var pause = false; // if true, then simulation will be stoped (both real_t and sim_t will not incremenet).
+var inter_frame_delay = 50; // miliseconds
+var sleep_after_collision = 0; // miliseconds
+
+var real_t_start; // start of te simulation. used to calculate real_t
+var real_t = 0.0; // real time. It will increment in wall clock speed.
+var sim_t = 0.0; // simulation time. It should follow real_t as close as possible, pausing or fast-forwarding if nacassary.
+
+/* Array of balls */
+var kulki = [];
+
+/* Generate random bunch of balls */
+function losuj() {
+	for (var i = 0; i < K; i++) {
+		kulki[i] = Kulka();
+	}
+	// TODO: better schemes of selecting initial balls
+	//       1. retrying (can fail, if we cannot generate balls small enaough, and there is already no place to place minimal size ball
+	//       2. resizing balls, until there is no collisions
+	//       3. performing initial simulation with much higher speed
+}
+
+/* Vector functions */
+function vec_diff(a, b) {
+	return [a[0]-b[0], a[1]-b[1]];
+}
+function vec_dot(a, b) {
+	return a[0]*b[0] + a[1]*b[1];
+}
+function vec_sqr(a) {
+	return a[0]*a[0] + a[1]*a[1];
+}
+function vec_add(a, b) {
+	return [a[0]+b[0], a[1]+b[1]];
+}
+function vec_mul(c, a) {
+	return [c*a[0], c*a[1]];
+}
+
+/* Return square of a. Helper function */
+function sqr(a) { return a*a; }
+
+/* Initial energy and momentum values */
+var energy_0;
+var momentum_0;
+
+/* Calculate current energy and momentum. If it wasn't computed yet,
+ * assume this is is also initial value. Compute differences,
+ * and update GUI. */
+function calc_invariants() {
+	var energy = 0.0;
+	var momentum = [0.0, 0.0];
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+		energy += k.mass*vec_sqr(k.velocity);
+		momentum = vec_add(momentum, vec_mul(k.mass, k.velocity));
+	}
+	energy *= 0.5;
+	if (energy_0 === undefined) {
+		energy_0 = energy;
+		momentum_0 = momentum;
+	}
+	document.getElementById('energy').value = energy;
+	document.getElementById('energy_diff').value = (energy-energy_0)/energy_0;
+
+	// rozklad predkosci
+	// rozklad pedow
+	// rozklad energi
+}
+
+/* Time to first collision */
+var limit_t = 100.0; // time to collision
+var limit_i = -1; // first ball of collision
+var limit_j = -1; // second ball of collision
+var limit_position = [0.0,0.0]; // point_of_impact;
+
+/* Number of collisions */
+var initial_collisions = 1.0/0.0;
+
+/* Coordinates of bounding box of whole area. Walls .*/
+var wall_x1, wall_x2, wall_y1, wall_y2;
+
+/* Calculate collisions, predict times of collisions, select first one. */
+function collision() {
+	document.getElementById('balls').value = K;
+
+	calc_invariants();
+
+	// TODO: priority queue of collision times
+	// then retrivie minimial, retriview remaining 2*(n-2) balls pairs witch could interact with this two,
+	// and insert back to the queue updating times with new velocities
+
+	var current_collisions = 0;
+
+	var prev_limit_i = limit_i;
+	var prev_limit_j = limit_j;
+
+//	console.log("Obliczam nowe kolizje");
+	/* Iterate over all pairs of balls */
+	limit_i = -1;
+	limit_j = -1;
+	var smallest_t = 1.0/0.0;
+	for (var i = 0; i < kulki.length; i++) {
+		var k1 = kulki[i];
+		if (!k1.needs_recalc) {
+			//continue;
+		}
+
+		/* calculate collision with other balls */
+		for (var j = i+1; j < kulki.length; j++) {
+//			console.log("sprawdzam "+i+" z "+j);
+			var k2 = kulki[j];
+
+			/* solving:  || (k1.position + t*k1.velocity) - (k2.position + t*k2.velocity) ||^2 == (k1.radius+k2.radius)^2  */
+
+			var diff_position = vec_diff(k1.position, k2.position);
+			var diff_velocity = vec_diff(k1.velocity, k2.velocity);
+			var eq_a = vec_sqr(diff_velocity);
+			var eq_b = 2.0*vec_dot(diff_position, diff_velocity);
+			var eq_c = vec_sqr(diff_position) - sqr(k1.radius+k2.radius);
+//			console.log("a="+eq_a+" b="+eq_b+" c="+eq_c);
+			if (eq_a <= 0.0) {
+				alert("a="+eq_a);
+				continue;
+			}
+			if (eq_c < 0.0) {
+				current_collisions++;
+				if ((initial_collisions == 0) || (current_collisions > initial_collisions)) {
+					// ignore previous collision
+					if (i != prev_limit_i && j != prev_limit_j) {
+//						alert("c("+i+","+j+")="+eq_c);
+//						pause = true;
+					} else {
+						current_collisions--;
+					}
+				}
+				continue;
+			}
+			var delta = eq_b*eq_b - 4.0*eq_a*eq_c;
+			if (delta < 0.0) {
+//				console.log("brak predykcja kolizji "+i+" z "+j+"  (ujemna delta)");
+				continue;
+			}
+			var t1 = (- eq_b - Math.sqrt(delta)) / (2.0*eq_a);
+			var t2 = (- eq_b + Math.sqrt(delta)) / (2.0*eq_a);
+//			console.log("t1="+t1+" t2="+t2);
+			var t = -1.0;
+			if (t1 > 0.0 && t2 > 0.0) {
+				if (t1 < t2) {
+					t = t1;
+				} else {
+					t = t2;
+				}
+			} else {
+				if (t1 > 0.0) {
+					t = t1;
+				} else if (t2 > 0.0) {
+					t = t2;
+				}
+			}
+			if (t > 0.0) {
+//				console.log("predykcja kolizji "+i+" z "+j+" w limit_t="+t);
+				if (t < smallest_t) {
+					smallest_t = t;
+					limit_i = i;
+					limit_j = j;
+					// todo: calculate point of impact, update limit_position
+					//       before doing so check if point of impact is inside boundouaries of walls
+				}
+			} else {
+//				console.log("brak predykcja kolizji "+i+" z "+j+"  (ujemne rozwiazania)");
+			}
+		}
+
+		/* Calculate collision with walls */
+		if (have_walls) {
+			var k = k1;
+
+//			if (prev_limit_i != i && prev_limit_j != -1) {
+			{
+				var t = 1.0/0.0;
+				var tt = 1.0/0.0;
+
+				/* solving:  k.position[0] + t*k.velocity[0] == wall_x2-k.radius  */
+
+				// right
+				t = (wall_x2-k.radius-k.position[0])/k.velocity[0];
+				if (k.velocity[0] > 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				// left
+				t = (wall_x1+k.radius-k.position[0])/k.velocity[0];
+				if (k.velocity[0] < 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				// top
+				t = (wall_y2-k.radius-k.position[1])/k.velocity[1];
+				if (k.velocity[1] > 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				// botom
+				t = (wall_y1+k.radius-k.position[1])/k.velocity[1];
+				if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				if (tt > 0.0 && tt < 1.0/0.0 && tt < smallest_t) {
+					smallest_t = tt;
+					limit_i = i;
+					limit_j = -1;
+				}
+			}
+		}
+
+
+		k1.needs_recalc = false;
+	}
+	initial_collisions = current_collisions;
+	limit_t = smallest_t;
+	document.getElementById('limit_i').value = limit_i;
+	document.getElementById('limit_j').value = limit_j;
+	document.getElementById('current_collisions').value = current_collisions;
+//	console.log("ostatecznie: limit_t="+limit_t+" (tj. t="+(limit_t+sim_t)+") limit_i="+limit_i+" limit_j="+limit_j);
+//	console.log("koniec predykcji kolizji");
+}
+
+/* Clear canvas (make it whole white) */
+function clear(canvas, ctx) {
+	canvas.width = canvas.width; // clear
+	return;
+
+	// Store the current transformation matrix
+	ctx.save();
+	// Use the identity matrix while clearing the canvas
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	// Restore the transform
+	ctx.restore();
+}
+
+/* Draw all balls, and other elements, like colliding balls, numbers, additional lines, vectors, etc. */
+function rysuj_kulki() {
+	//collision();
+
+	// get a reference to the canvas
+	var canvas = document.getElementById("c");
+	var ctx = canvas.getContext("2d");
+
+	clear(canvas, ctx);
+
+	if (draw_interline) {
+		if (limit_i != -1 && limit_j != -1) {
+		ctx.save();
+		var k1 = kulki[limit_i];
+		var k2 = kulki[limit_j];
+		ctx.fillStyle = 'rgb(255,0,0)';
+		ctx.moveTo(0.5*canvas.width + k1.position[0], 0.5*canvas.height + k1.position[1]);
+		ctx.lineTo(0.5*canvas.width + k2.position[0], 0.5*canvas.height + k2.position[1]);
+		ctx.stroke();
+		ctx.restore();
+		}
+	}
+
+	ctx.save();
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+		//draw a circle
+		if (show_next_collision && (i == limit_i || i == limit_j)) {
+			ctx.fillStyle = 'rgb(255,0,0)';
+		} else {
+			ctx.fillStyle = k.color;
+		}
+		ctx.beginPath();
+		ctx.arc(0.5*canvas.width + k.position[0], 0.5*canvas.height + k.position[1], k.radius, 0, Math.PI*2, true);
+		ctx.closePath();
+		ctx.fill();
+	}
+	ctx.restore();
+
+	if (draw_number) {
+		ctx.save();
+		ctx.fillStyle = 'rgb(0,0,0)';
+		for (var i = 0; i < kulki.length; i++) {
+			var k = kulki[i];
+			if (!show_next_collision && (i == limit_i || i == limit_j)) {
+				ctx.fillStyle = 'rgb(255,0,0)';
+			} else {
+				ctx.fillStyle = 'rgb(0,0,0)';
+			}
+			ctx.fillText(""+i, 0.5*canvas.width + k.position[0] - 2.0, 0.5*canvas.height + k.position[1] + 3.0);
+		}
+		ctx.restore();
+	}
+}
+
+/* Counters of collision types since begining of the simulation */
+var wall_collisions = 0;
+var ball_collisions = 0;
+
+/* Update positions of balls depending on speed, dt, real_t and sim_t, lag, etc.
+ * Resolve any collisions beetwen balls and walls, and schedule recalculation of collision predictions.
+ */
+function postep() {
+	var canvas = document.getElementById("c");
+
+	var max_v = 1.0e-4;
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+		var v = Math.abs(k.velocity[0]) + Math.abs(k.velocity[1]);
+		if (v > max_v) {
+			max_v = v;
+		}
+	}
+
+	var need_collision_recalc = false;
+
+	if (limit_t > 0.0) {
+
+		var dt = speed;
+		//var dt = speed / max_v;
+
+/*
+		if (sim_t + 5*dt < real_t) {
+			dt = real_t-sim_t + 10.0*dt; // very fast-forward in case of lagging simulation
+			inter_frame_delay = 0;
+		} else if (sim_t + 2*dt < real_t) {
+			dt = real_t-sim_t + 2.0*dt;
+			inter_frame_delay = 50; // fast-forward in case of lag
+			start_anim();
+		} else {
+			inter_frame_delay = 100;
+			start_anim();
+		}
+*/
+		dt = real_t-sim_t + speed;
+
+		if (limit_t < dt) {
+			dt = limit_t;
+			dt *= 1.00000001;
+		}
+		document.getElementById('last_dt').value = dt;
+
+		if (real_t-sim_t > limit_t) {
+			inter_frame_delay = 0;
+			start_anim();
+		} else {
+			inter_frame_delay = 50;
+			start_anim();
+		}
+
+		for (var i = 0; i < kulki.length; i++) {
+			var k = kulki[i];
+
+			k.position[0] = k.position[0] + k.velocity[0]*dt;
+			k.position[1] = k.position[1] + k.velocity[1]*dt;
+
+			// todo: add gravity
+
+			if (have_walls) {
+			if ( (k.position[0]-k.radius <= -canvas.width/2.0 && k.velocity[0] < 0.0) || (canvas.width/2.0 <= k.position[0]+k.radius && k.velocity[0] > 0.0) ) {
+				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
+				wall_collisions++;
+				k.velocity[0] *= -1.0;
+				k.needs_recalc = true;
+				need_collision_recalc = true;
+			}
+			if ( (k.position[1]-k.radius <= -canvas.height/2.0 && k.velocity[1] < 0.0) || (canvas.height/2.0 <= k.position[1]+k.radius && k.velocity[1] > 0.0) ) {
+				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
+				wall_collisions++;
+				k.velocity[1] *= -1.0;
+				k.needs_recalc = true;
+				need_collision_recalc = true;
+			}
+			}
+		}
+
+		sim_t += dt;
+		limit_t -= dt;
+	} else if (limit_i >= 0 && limit_j >= 0) {
+		// TODO: we probably may miss collision, if multiple collisions happened same time, or withing very short window of about 0-0.00001 * limit_t
+		var k1 = kulki[limit_i];
+		k1.collisions++;
+		var k2 = kulki[limit_j];
+		k2.collisions++;
+
+		//console.log("t="+sim_t+" - kolizja pomiedzy kulami "+limit_i+" oraz "+limit_j);
+
+		ball_collisions++;
+
+	// http://www.vobarian.com/collisions/2dcollisions2.pdf
+		var n = vec_diff(k2.position, k1.position);
+		var n_length = Math.sqrt(vec_sqr(n));
+		var unit_normal = [n[0]/n_length, n[1]/n_length];
+		var unit_tangent = [-unit_normal[1], unit_normal[0]];
+
+		// project velocitiec of i and j, into normal and tangential components
+		var i_velocity_normal = vec_dot(k1.velocity, unit_normal);
+		var i_velocity_tangential = vec_dot(k1.velocity, unit_tangent);
+		var j_velocity_normal = vec_dot(k2.velocity, unit_normal);
+		var j_velocity_tangential = vec_dot(k2.velocity, unit_tangent);
+
+		var m1 = kulki[limit_i].mass;
+		var m2 = kulki[limit_j].mass;
+
+		// calculate 1-dimiensional collision using normal components, leaving tangential components without a change
+		var i_velocity_new_tangential = i_velocity_tangential;
+		var i_velocity_new_normal = (i_velocity_normal*(m1-m2) + 2.0*m2*j_velocity_normal) / (m1+m2);
+		var j_velocity_new_tangential = j_velocity_tangential;
+		var j_velocity_new_normal = (j_velocity_normal*(m2-m1) + 2.0*m1*i_velocity_normal) / (m1+m2);
+
+		// reconstruct velocities from normal/tangent coordinates
+		var i_velocity_new = vec_add(vec_mul(i_velocity_new_normal, unit_normal), vec_mul(i_velocity_new_tangential, unit_tangent));
+		var j_velocity_new = vec_add(vec_mul(j_velocity_new_normal, unit_normal), vec_mul(j_velocity_new_tangential, unit_tangent));
+
+		// update old velocities
+		k1.velocity = i_velocity_new;
+		k2.velocity = j_velocity_new;
+
+		k1.needs_recalc = true;
+		k2.needs_recalc = true;
+		need_collision_recalc = true;
+	}
+
+	if (need_collision_recalc) {
+		if (0) {
+			clearInterval(anim_timer);
+			setTimeout(start_sim, sleep_after_collision);
+		} else {
+			collision();
+		}
+	}
+
+	document.getElementById('wall_collisions').value = wall_collisions;
+	document.getElementById('ball_collisions').value = ball_collisions;
+	document.getElementById('limit_t').value = limit_t;
+	document.getElementById('sim_t').value = sim_t;
+	//document.getElementById('real_t_from_start').value = real_t;
+	document.getElementById('inter_frame_delay').value = inter_frame_delay;
+}
+
+
+/* Switches time direction of simulation. Allows running simulation in reverse,
+ * to see that laws of physics are symmetric with respect of reversing time flow.
+ */
+function switch_time_arrow() {
+	time_arrow *= -1.0;
+
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+
+		k.velocity[0] *= -1.0;
+		k.velocity[1] *= -1.0;
+	}
+}
+
+/* start simulation, by performing initial collisions prediction, drawing balls, and scheduling frame drawing. */
+function start_sim(e) {
+	collision();
+	rysuj_kulki();
+	start_anim(e);
+}
+
+var anim_timer; // used by setInterval
+
+/* Schedule next frame in periodic fashion, canceling previous schedule if nacassary.
+ * It will skip frame if simulation time is ahead of real time, or if simulation is manually paused.
+ */
+function start_anim(e) {
+	clearInterval(anim_timer);
+	anim_timer = setInterval(function() {
+		if (pause || document.getElementById("paused").checked) {
+			return;
+		}
+		real_t = ((new Date()).getTime() - real_t_start) / 1000.0;
+		document.getElementById('real_t_from_start').value = real_t;
+		document.getElementById('lag_t').value = real_t-sim_t;
+		if (sim_t > real_t) {
+			return;
+		}
+		postep();
+		rysuj_kulki();
+	}, inter_frame_delay);
+};
+
+/* Initialize simulation. */
+function sim_init() {
+	document.getElementById("b").addEventListener('click', start_sim, false);
+
+	var canvas = document.getElementById("c");
+	wall_x1 = -canvas.width/2.0;
+	wall_x2 = canvas.width/2.0;
+	wall_y1 = -canvas.height/2.0;
+	wall_y2 = canvas.height/2.0;
+
+	var tries = 0;
+	do {
+		energy_0 = undefined;
+		losuj();
+		collision();
+		tries++;
+		if (tries > 300) {
+			min_r *= 0.9;
+			max_r *= 0.9;
+			tries -= 300;
+		}
+	} while (initial_collisions != 0);
+	pause = false;
+
+	real_t_start = (new Date()).getTime();
+
+	rysuj_kulki();
+
+	start_sim();
+
+	return false;
+}
+
+// -->
+</script>
+</head>
+<body onload='sim_init();'>
+<!-- GUI of simulation -->
+E:<input id='energy' size='30' readonly>
+(E-E0)/E0:<input id='energy_diff' size='30' readonly>
+M:<input id='momentum' size='30' readonly>
+M-M0:<input id='momentum_diff' size='30' readonly>
+<br>
+t:<input id='sim_t' size='30' readonly>
+real_t:<input id='real_t_from_start' size='30' readonly>
+lag_t:<input id='lag_t' size='30' readonly>
+last_dt:<input id='last_dt' size='30' readonly>
+inter_frame_delay:<input id='inter_frame_delay' readonly>
+<br>
+balls:<input id='balls'>
+<input id='paused' type='checkbox' title='Pause'>
+<input id='b' type='button' value='Go'>
+<br>
+limit_i:<input id='limit_i' size='5' readonly>
+limit_j:<input id='limit_j' size='5' readonly>
+limit_t:<input id='limit_t' size='30' readonly>
+current_collisions:<input id='current_collisions' size='5' readonly>
+wall collisions:<input id='wall_collisions' readonly>
+ball collisions:<input id='ball_collisions' readonly>
+<br>
+<canvas id='c' width='1380' height='720' style='border: 1px solid black;'></canvas>
+</body>
+</html>
