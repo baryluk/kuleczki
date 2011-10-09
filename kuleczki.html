@@ -46,9 +46,10 @@ var max_v = 50.0;
 
 // Returns random ball. It will have mass proportional to the area, and color proportional to the mass.
 function Kulka() {
+	var vertical_v = 1.0; // Set to 0.0, if you want to have one-dimensional simulation
 	var r = {
-		position: [600.0*(2.0*Math.random()-1.0), 0.0*300.0*(2.0*Math.random()-1.0)],
-		velocity: [max_v*(2.0*Math.random()-1.0), 0.0*max_v*(2.0*Math.random()-1.0)],
+		position: [600.0*(2.0*Math.random()-1.0), vertical_v*300.0*(2.0*Math.random()-1.0)],
+		velocity: [max_v*(2.0*Math.random()-1.0), vertical_v*max_v*(2.0*Math.random()-1.0)],
 		radius: min_r + (max_r-min_r)*Math.random(),
 		mass: 1.0, //Math.random(),
 		color: 'rgb(' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ')',
@@ -57,6 +58,7 @@ function Kulka() {
 		active: true,
 		needs_recalc: true
 	};
+	//r.radius = (Math.random() < 0.5 ? min_r : max_r):
 	r.mass = r.radius*r.radius;
 	var minimal_mass = min_r*min_r;
 	var mass_diff = max_r*max_r - minimal_mass;
@@ -80,11 +82,11 @@ var pause = false; // if true, then simulation will be stoped (both real_t and s
 var inter_frame_delay = 50; // miliseconds
 var sleep_after_collision = 0; // miliseconds
 
-var real_t_start; // start of te simulation. used to calculate real_t
-var real_t = 0.0; // real time. It will increment in wall clock speed.
-var sim_t = 0.0; // simulation time. It should follow real_t as close as possible, pausing or fast-forwarding if nacassary.
+var real_t_start; // wall clock time of the start of the simulation (in seconds). used to calculate real_t
+var real_t = 0.0; // real time in seconds. It will increment in wall clock speed.
+var sim_t = 0.0; // simulation time in seconds. It should follow real_t as close as possible, pausing or fast-forwarding if nacassary.
 
-/* Array of balls */
+/* Array of all balls (in polish language, kulki is plural form of kulka which is diminutive of the word kula, which means ball. simply, small balls) */
 var kulki = [];
 
 /* Generate random bunch of balls */
@@ -552,7 +554,7 @@ function start_anim(e) {
 		if (pause || document.getElementById("paused").checked) {
 			return;
 		}
-		real_t = ((new Date()).getTime() - real_t_start) / 1000.0;
+		real_t = 0.001*((new Date()).getTime()) - real_t_start;
 		document.getElementById('real_t_from_start').value = real_t;
 		document.getElementById('lag_t').value = real_t-sim_t;
 		if (sim_t > real_t) {
@@ -568,11 +570,20 @@ function sim_init() {
 	document.getElementById("b").addEventListener('click', start_sim, false);
 
 	var canvas = document.getElementById("c");
+
+	energy_0 = undefined;
+	momentum_0 = undefined;
+
+	/* Initialize some global variables, used in collision() for example. */
 	wall_x1 = -canvas.width/2.0;
 	wall_x2 = canvas.width/2.0;
 	wall_y1 = -canvas.height/2.0;
 	wall_y2 = canvas.height/2.0;
 
+	/* Select initial balls at random, eventually retry, until they do not overlap.
+	 * If it also fails, make balls smaller, and retry again.
+	 * It will eventually find suitable initial conditions.
+	 */
 	var tries = 0;
 	do {
 		energy_0 = undefined;
@@ -587,7 +598,8 @@ function sim_init() {
 	} while (initial_collisions != 0);
 	pause = false;
 
-	real_t_start = (new Date()).getTime();
+	/* Wall clock time of the real start of simulation (in seconds). */
+	real_t_start = 0.001*((new Date()).getTime());
 
 	rysuj_kulki();
 
