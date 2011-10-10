@@ -1,0 +1,91 @@
+Kuleczki
+
+This is JavaScript based simulation of ellastic collisions
+beetwen balls contained in some rectauglar space.
+It for example can model how atoms and particles in an ideal gas interact.
+
+Well suited for didactic purposes, some research or basis of other programs
+(like games). It started as excersise in pure JavaScript coding,
+canvas, as well as a small research in collisions simulations
+(for example I wasn't very amused by the colliding ball demo
+in Peacekeeper demo/benchmark by Futurmark - it was slow,
+and behaves in not physically correct way,
+it also have very small number of objects).
+
+Most of similar simulations and animations, have some problems.
+Most of them are not robust enough (can miss collision especially
+with small particles having very big speed, or create non-physical interaction,
+violate energy conservation, etc), are slow (to make them robust, time-step
+in simulations need to be very small, thus more steps need to be taken),
+problematic (needs manual tunning of various parameters, like time-step),
+or do not scale well to big number of balls (particles). Last issue
+is most commonly solved using some form of space partitioning,
+like grid, quadtree, binary space partitioning or bounding volume/area hiearachy,
+however it can be problematic if balls have varying and unpredictable radius.
+
+Here, we use robust and predictable simulation using analitic solving of motion
+equations and resolving of all collision, finding narest collision, performing simulation
+up to the narest collision point in time (independed of the frame-rate,
+we can perform simulation at real-time), calculating new collisions which will
+happen in the future, and repeat.
+
+We just for each possible ball pair, solve
+|| (x_i + t*v_i) - (x_j + t*v_j) ||^2 = (r_i+r_j)^2
+for t > 0. If two solutions exists, we use smallest one.
+(x_i and x_j are vector positions, v_i, v_j are vector velocities,
+and r_i, r_j are radius of ball i and j respecievly).
+
+Similary for walls, for example for right wall, we solve for each ball a
+x_i_x + t*v_i_x = right_wall_x-radius_i.
+Similary for left, top and bottom wall.
+
+Then, we select smallest possitive t from all this solutions, and perform
+simulation with small step to make simulation run at 25 fps in real-time.
+If needed we increase step up to the biggest possible and do not use any inter-frame
+sleep, to fast-forward to narest collision, to maitain real-time constrains.
+In any case, no collisions will be missed, and physics will not be affected,
+even if balls looks to be taking very big jumps in space.
+
+To improve speed, and to not recalculate all O(N^2) possible collisions,
+after every collision, we only update this collisions which could
+change simulation, but leave rest without change.
+Per-ball, per-wall and global priority queues are used to
+make all nacassary operations faster and easier.
+
+TODO: Introduce inelasstic and imperfect collisions.
+      Allow changing initial number of balls.
+      Do not start simulation automatically.
+         Allow explicit manual randomization and simultion start.
+      Implement few other random placement strategies (like retring
+        placing single ball, making sure center of the ball is outside of any existing ball,
+        and making single added ball smaller and smaller). We can also allow initial overlap.
+      Allow adding and removing (manual, random, last) balls even when simulation is running.
+      Make pause function work properly.
+      Improve GUI (beside better collors, nicer layout, hiding some advanced fields by default,
+        adding tooltips, allow automatically resizing canvas)
+      Add graphs of velocity, energy and momenta distributions of all particles,
+        and draw mediana/mean value in function of time.
+        We can also fit Maxwell-Boltzman distributions to them.
+      Benchmark mode (predictable initial condition, predictable Math.random(),
+        run with many balls, for a finite amount of real or simulation time,
+        and measure various performance metrics, like fps, lag, number of collisions, etc.)
+      Introduce gravitation (this will introduce polynomial of 4th order,
+        which can be still solved analitically or numerically, very easly).
+      Introduce air resistance (in one dimmension it could be solved analitically,
+         but in to dimenssions will need numerical solver)
+      Implement time-step based simulation for comparission
+       (with all nacassary robustness improvements, like hybrid
+          and adaptative time-step as well BSP).
+      Solve more general motion equations (preferably expressed as ordinary differential
+        equation, which is independent from other particles), using robust solvers,
+        like adaptative Runge-Kutta or interval algorithms. Select time-steps,
+        also using physical considerations (like movement by at most 1/100 of ball radius
+        in single time-step).
+      Introduce inter-ball interactions, like gravitation or electric field
+      Implement BSP for inter-ball interaction approximation (gravity interactions
+         decresses rapidly with distance beetween balls, so we need only to
+         consider narest ones without big error), or Fast Multipole Method
+
+Autor: Witold Baryluk
+
+Tested in: Opera 12.00-1085, Chromium 14.0.835.202, Epiphany 3.0.4 under Linux i386.
