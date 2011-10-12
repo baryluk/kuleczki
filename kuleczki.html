@@ -197,7 +197,8 @@ function collision() {
 			var diff_position = vec_diff(k1.position, k2.position);
 			var diff_velocity = vec_diff(k1.velocity, k2.velocity);
 			var eq_a = vec_sqr(diff_velocity);
-			var eq_b = 2.0*vec_dot(diff_position, diff_velocity);
+			//var eq_b_org = 2.0*vec_dot(diff_position, diff_velocity);
+			var eq_b = vec_dot(diff_position, diff_velocity);
 			var eq_c = vec_sqr(diff_position) - sqr(k1.radius+k2.radius);
 //			console.log("a="+eq_a+" b="+eq_b+" c="+eq_c);
 			if (eq_a <= 0.0) {
@@ -217,13 +218,16 @@ function collision() {
 				}
 				continue;
 			}
-			var delta = eq_b*eq_b - 4.0*eq_a*eq_c;
+			//var delta_org = eq_b_org*eq_b_org - 4.0*eq_a*eq_c;
+			var delta = eq_b*eq_b - eq_a*eq_c; // original delta divided by 4
 			if (delta < 0.0) {
 //				console.log("brak predykcja kolizji "+i+" z "+j+"  (ujemna delta)");
 				continue;
 			}
-			var t1 = (- eq_b - Math.sqrt(delta)) / (2.0*eq_a);
-			var t2 = (- eq_b + Math.sqrt(delta)) / (2.0*eq_a);
+			//var t1 = -0.5*(eq_b_org + Math.sqrt(delta_org)) / eq_a;
+			//var t2 = 0.5*(Math.sqrt(delta_org) - eq_b_org) / eq_a;
+			var t1 = -(eq_b + Math.sqrt(delta)) / eq_a;  // equivalent, because eq_b was already divided by 2 in assigment, and delta was divided by 4
+			var t2 = (Math.sqrt(delta) - eq_b) / eq_a;
 //			console.log("t1="+t1+" t2="+t2);
 			var t = -1.0;
 			if (t1 > 0.0 && t2 > 0.0) {
@@ -451,14 +455,14 @@ function postep() {
 			if ( (k.position[0]-k.radius <= -canvas.width/2.0 && k.velocity[0] < 0.0) || (canvas.width/2.0 <= k.position[0]+k.radius && k.velocity[0] > 0.0) ) {
 				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
 				wall_collisions++;
-				k.velocity[0] *= -1.0;
+				k.velocity[0] = -k.velocity[0];
 				k.needs_recalc = true;
 				need_collision_recalc = true;
 			}
 			if ( (k.position[1]-k.radius <= -canvas.height/2.0 && k.velocity[1] < 0.0) || (canvas.height/2.0 <= k.position[1]+k.radius && k.velocity[1] > 0.0) ) {
 				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
 				wall_collisions++;
-				k.velocity[1] *= -1.0;
+				k.velocity[1] = -k.velocity[1];
 				k.needs_recalc = true;
 				need_collision_recalc = true;
 			}
