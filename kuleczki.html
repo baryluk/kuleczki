@@ -76,7 +76,8 @@ var have_walls = true;
 var show_next_collision = true;
 var draw_interline = false; // black line connecting balls which will collide
 var draw_number = false; // show a number of the ball inside it
-var g = 10.1; // gravitation acceleration
+var g = [0.0, -9.1]; // gravitation acceleration
+//var g_half = vec_mul(0.5, g);
 
 var pause = false; // if true, then simulation will be stoped (both real_t and sim_t will not incremenet).
 var inter_frame_delay = 50; // miliseconds
@@ -437,7 +438,14 @@ function postep() {
 			k.position[0] = k.position[0] + k.velocity[0]*dt;
 			k.position[1] = k.position[1] + k.velocity[1]*dt;
 
-			// todo: add gravity
+			if (gravity) {
+				k.position[0] += g_half[0]*dt*dt;
+				k.position[1] += g_half[1]*dt*dt;
+				k.velocity[0] += g[0]*dt;
+				k.velocity[1] += g[1]*dt;
+			}
+
+			// TODO: per ball acceleration (in. electric field, with different charges)
 
 			if (have_walls) {
 			if ( (k.position[0]-k.radius <= -canvas.width/2.0 && k.velocity[0] < 0.0) || (canvas.width/2.0 <= k.position[0]+k.radius && k.velocity[0] > 0.0) ) {
