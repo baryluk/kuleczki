@@ -697,27 +697,33 @@ function sim_init() {
 </head>
 <body onload='sim_init();'>
 <!-- GUI of simulation -->
-E:<input id='energy' size='30' readonly>
-(E-E0)/E0:<input id='energy_diff' size='30' readonly>
-M:<input id='momentum' size='30' readonly>
-M-M0:<input id='momentum_diff' size='30' readonly>
+Ekin:<input id='kinetic_energy' size='24' readonly>
+Egrav:<input id='potential_energy' size='24' readonly>
+E:<input id='energy' size='24' readonly>
+(E-E0)/E0:<input id='energy_diff' size='24' readonly>
+M:<input id='momentum' size='24' readonly>
+M-M0:<input id='momentum_diff' size='24' readonly>
 <br>
-t:<input id='sim_t' size='30' readonly>
-real_t:<input id='real_t_from_start' size='30' readonly>
-lag_t:<input id='lag_t' size='30' readonly>
-last_dt:<input id='last_dt' size='30' readonly>
-inter_frame_delay:<input id='inter_frame_delay' readonly>
+t:<input id='sim_t' size='24' readonly>
+real_t:<input id='real_t_from_start' size='24' readonly>
+lag_t:<input id='lag_t' size='24' readonly>
+last_dt:<input id='last_dt' size='24' readonly>
+inter_frame_delay:<input id='inter_frame_delay' size='5' readonly>
 <br>
-balls:<input id='balls'>
+balls:<input id='balls' size='5'>
+init_tries:<input id='init_tries' size='10'>
+init_min_r:<input id='min_r' size='10'>
+init_max_r:<input id='max_r' size='10'>
+init_max_v:<input id='max_v' size='10'>
 <input id='paused' type='checkbox' title='Pause'>
 <input id='b' type='button' value='Go'>
 <br>
-limit_i:<input id='limit_i' size='5' readonly>
-limit_j:<input id='limit_j' size='5' readonly>
-limit_t:<input id='limit_t' size='30' readonly>
+limit_i:<input id='limit_i' size='4' readonly>
+limit_j:<input id='limit_j' size='4' readonly>
+limit_t:<input id='limit_t' size='24' readonly>
 current_collisions:<input id='current_collisions' size='5' readonly>
-wall collisions:<input id='wall_collisions' readonly>
-ball collisions:<input id='ball_collisions' readonly>
+wall collisions:<input id='wall_collisions' size='5' readonly>
+ball collisions:<input id='ball_collisions' size='5' readonly>
 <br>
 <canvas id='c' width='1380' height='720' style='border: 1px solid black;'></canvas>
 </body>
