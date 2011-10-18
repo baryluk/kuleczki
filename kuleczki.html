@@ -187,6 +187,9 @@ var initial_collisions = 1.0/0.0;
 /* Coordinates of bounding box of whole area. Walls .*/
 var wall_x1, wall_x2, wall_y1, wall_y2;
 
+var global_queue = new PriorityQueue();
+var walls_queue = new PriorityQueue();
+
 /* Calculate collisions, predict times of collisions, select first one. */
 function collision() {
 	document.getElementById('balls').value = K;
