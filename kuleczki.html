@@ -11,6 +11,7 @@ if(!document.createElement('canvas').getContext('2d').fillText) {
 }
 // -->
 </script>
+<script type="text/javascript" src="priority_queue.js"></script>
 <script type='text/javascript'>
 <!-- //
 /* Simulation of ellastic balls collision in 2 dimensions.
@@ -56,7 +57,13 @@ function Kulka() {
 		friction: Math.random(),
 		collisions: 0,
 		active: true,
-		needs_recalc: true
+		needs_recalc: true,
+		queue: new PriorityQueue(),
+		average_position: [0,0],
+		average_velocity: [0,0],
+		maximal_position: [0,0],
+		maximal_velocity: [0,0],
+		acceleration: [0.0, 0.0]  // per-ball acceleration (must be constant in time!)
 	};
 	//r.radius = (Math.random() < 0.5 ? min_r : max_r):
 	r.mass = r.radius*r.radius;
@@ -181,11 +188,14 @@ function collision() {
 	limit_i = -1;
 	limit_j = -1;
 	var smallest_t = 1.0/0.0;
+	var smallest_wall_t = 1.0/0.0;
 	for (var i = 0; i < kulki.length; i++) {
 		var k1 = kulki[i];
 		if (!k1.needs_recalc) {
 			//continue;
 		}
+
+		k1.queue.clear();
 
 		/* calculate collision with other balls */
 		for (var j = i+1; j < kulki.length; j++) {
@@ -245,6 +255,9 @@ function collision() {
 			}
 			if (t > 0.0) {
 //				console.log("predykcja kolizji "+i+" z "+j+" w limit_t="+t);
+				if (t < smallest_wall_t) {
+					k1.queue.add(t, [i,j]);
+				}
 				if (t < smallest_t) {
 					smallest_t = t;
 					limit_i = i;
