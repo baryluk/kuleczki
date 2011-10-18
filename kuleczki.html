@@ -194,7 +194,7 @@ var walls_queue = new PriorityQueue();
 function collision() {
 	document.getElementById('balls').value = K;
 
-	calc_invariants();
+//	calc_invariants();
 
 	// TODO: priority queue of collision times
 	// then retrivie minimial, retriview remaining 2*(n-2) balls pairs witch could interact with this two,
@@ -385,6 +385,8 @@ function clear(canvas, ctx) {
 /* Draw all balls, and other elements, like colliding balls, numbers, additional lines, vectors, etc. */
 function rysuj_kulki() {
 	//collision();
+
+	calc_invariants();
 
 	// get a reference to the canvas
 	var canvas = document.getElementById("c");
