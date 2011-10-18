@@ -677,17 +677,20 @@ function sim_init() {
 	 * If it also fails, make balls smaller, and retry again.
 	 * It will eventually find suitable initial conditions.
 	 */
+	var all_tries = 0;
 	var tries = 0;
 	do {
 		energy_0 = undefined;
 		losuj();
 		collision();
 		tries++;
-		if (tries > 300) {
-			min_r *= 0.9;
-			max_r *= 0.9;
-			tries -= 300;
+		all_tries++;
+		if (tries > 50) {
+			min_r *= 0.8;
+			max_r *= 0.8;
+			tries -= 50;
 		}
+		document.getElementById('init_tries').value = all_tries;
 	} while (initial_collisions != 0);
 	pause = false;
 
