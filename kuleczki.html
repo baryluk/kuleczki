@@ -104,6 +104,10 @@ var kulki = [];
 
 /* Generate random bunch of balls */
 function losuj() {
+	document.getElementById('min_r').value = min_r;
+	document.getElementById('max_r').value = max_r;
+	document.getElementById('max_v').value = max_v;
+
 	for (var i = 0; i < K; i++) {
 		kulki[i] = Kulka();
 	}
