@@ -608,26 +608,50 @@ var anim_timer; // used by setInterval
 /* Schedule next frame in periodic fashion, canceling previous schedule if nacassary.
  * It will skip frame if simulation time is ahead of real time, or if simulation is manually paused.
  */
+var previous_t;
+var pause_begin_t = 0.0;
+var previous_pause_compensation = 0.0;
+var pause_compensation = 0.0;
 function start_anim(e) {
 	clearInterval(anim_timer);
 	anim_timer = setInterval(function() {
-		if (pause || document.getElementById("paused").checked) {
-			return;
+		var t = 0.001*((new Date()).getTime());
+		if (pause) {
+			pause_compensation = previous_pause_compensation + (t - pause_begin_t)
 		}
-		real_t = 0.001*((new Date()).getTime()) - real_t_start;
+		real_t = t - real_t_start - pause_compensation;
+		lag_t = real_t - sim_t;
 		document.getElementById('real_t_from_start').value = real_t;
-		document.getElementById('lag_t').value = real_t-sim_t;
-		if (sim_t > real_t) {
+		document.getElementById('lag_t').value = lag_t;
+		if (pause) {
+			if (lag_t <= 0.01) {
+				return;
+			}
+		}
+		if (sim_t+0.01 > real_t) {
 			return;
 		}
 		postep();
 		rysuj_kulki();
+		previous_t = t;
 	}, inter_frame_delay);
 };
 
 /* Initialize simulation. */
 function sim_init() {
 	document.getElementById("b").addEventListener('click', start_sim, false);
+
+	document.getElementById("paused").addEventListener('change', function (e) {
+		var t = 0.001*((new Date()).getTime());
+		if (this.checked) {
+			pause = true;
+			pause_begin_t = t;
+		} else {
+			pause = false;
+			previous_pause_compensation += t - pause_begin_t;
+			pause_t = 0.0;
+		}
+	}, false);
 
 	var canvas = document.getElementById("c");
 
