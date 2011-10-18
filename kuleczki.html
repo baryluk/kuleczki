@@ -41,8 +41,9 @@ if(!document.createElement('canvas').getContext('2d').fillText) {
  * under other licene please contact author.
  */
 
-var min_r = 20.0;
-var max_r = 100.0;
+var min_r_prob = 0.9;
+var min_r = 9.9;
+var max_r = 10.0;
 var max_v = 50.0;
 
 // Returns random ball. It will have mass proportional to the area, and color proportional to the mass.
@@ -65,11 +66,11 @@ function Kulka() {
 		maximal_velocity: [0,0],
 		acceleration: [0.0, 0.0]  // per-ball acceleration (must be constant in time!)
 	};
-	//r.radius = (Math.random() < 0.5 ? min_r : max_r):
+	r.radius = (Math.random() < min_r_prob ? min_r : max_r);
 	r.mass = r.radius*r.radius;
 	var minimal_mass = min_r*min_r;
 	var mass_diff = max_r*max_r - minimal_mass;
-	var c = Math.pow((r.mass-minimal_mass)/mass_diff, 1.0/1.21); // normalization of color + pseudo-gamma
+	var c = Math.pow((r.mass-minimal_mass)/(1.0e-4+mass_diff), 1.0/1.21); // normalization of color + pseudo-gamma
 	var c = Math.round(255*c);
 	r.color = 'rgb(' + 0 + ',' + (255-c) + ',' + c + ')';
 	return r;
