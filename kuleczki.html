@@ -56,6 +56,8 @@ function Kulka() {
 		mass: 1.0, //Math.random(),
 		color: 'rgb(' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ',' + Math.round(Math.random()*255) + ')',
 		friction: Math.random(),
+		restitution: 1.0, // 1.0 - elastic, 0.0 - perfect inelastic
+		internal_energy: 0.0, // internal energy, temperature, etc. will increase after inelastic collisions
 		collisions: 0,
 		active: true,
 		needs_recalc: true,
