@@ -83,11 +83,11 @@ function Kulka() {
 var speed = 1.0/10;
 var K = 30; // number of balls
 var have_walls = true;
+var top_wall = true;
 var show_next_collision = true;
 var draw_interline = false; // black line connecting balls which will collide
 var draw_number = false; // show a number of the ball inside it
 var g = [0.0, -9.1]; // gravitation acceleration
-//var g_half = vec_mul(0.5, g);
 
 var pause = false; // if true, then simulation will be stoped (both real_t and sim_t will not incremenet).
 var inter_frame_delay = 50; // miliseconds
@@ -128,6 +128,9 @@ function vec_mul(c, a) {
 	return [c*a[0], c*a[1]];
 }
 
+var g_half = vec_mul(0.5, g);
+var gravity = false;
+
 /* Return square of a. Helper function */
 function sqr(a) { return a*a; }
 
@@ -139,18 +142,25 @@ var momentum_0;
  * assume this is is also initial value. Compute differences,
  * and update GUI. */
 function calc_invariants() {
-	var energy = 0.0;
+	var kinetic_energy = 0.0;
+	var potential_energy = 0.0;
 	var momentum = [0.0, 0.0];
 	for (var i = 0; i < kulki.length; i++) {
 		var k = kulki[i];
-		energy += k.mass*vec_sqr(k.velocity);
+		kinetic_energy += k.mass*vec_sqr(k.velocity);
+		if (gravity) {
+			potential_energy += -k.mass*(vec_dot(k.position, g));
+		}
 		momentum = vec_add(momentum, vec_mul(k.mass, k.velocity));
 	}
-	energy *= 0.5;
+	kinetic_energy *= 0.5;
+	var energy = kinetic_energy + potential_energy;
 	if (energy_0 === undefined) {
 		energy_0 = energy;
 		momentum_0 = momentum;
 	}
+	document.getElementById('kinetic_energy').value = kinetic_energy;
+	document.getElementById('potential_energy').value = potential_energy;
 	document.getElementById('energy').value = energy;
 	document.getElementById('energy_diff').value = (energy-energy_0)/energy_0;
 
@@ -283,6 +293,7 @@ function collision() {
 				var tt = 1.0/0.0;
 
 				/* solving:  k.position[0] + t*k.velocity[0] == wall_x2-k.radius  */
+				/* or in case of gravity, solving:  k.position[0] + t*k.velocity[0] + t*t*g_half[0] == wall_x2-k.radius  */
 
 				// right
 				t = (wall_x2-k.radius-k.position[0])/k.velocity[0];
@@ -297,15 +308,35 @@ function collision() {
 				}
 
 				// top
+				if (top_wall) {
 				t = (wall_y2-k.radius-k.position[1])/k.velocity[1];
 				if (k.velocity[1] > 0.0 && t > 0.0 && t < tt) {
 					tt = t;
+				}
 				}
 
 				// botom
 				t = (wall_y1+k.radius-k.position[1])/k.velocity[1];
 				if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
 					tt = t;
+				}
+				if (gravity && g_half[1] != 0.0) {
+					var eq_a = g_half[1];
+					var eq_b = k.velocity[1];
+					var eq_c = (k.position[1]-k.radius-wall_y1);
+					var delta = eq_b*eq_b - 4.0*eq_a*eq_c;
+					if (delta >= 0) {
+						var t1 = (-eq_b + Math.sqrt(delta)) / (2.0*eq_a);
+						t = t1;
+						if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
+							tt = t;
+						}
+						var t2 = (-eq_b - Math.sqrt(delta)) / (2.0*eq_a);
+						t = t2;
+						if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
+							tt = t;
+						}
+					}
 				}
 
 				if (tt > 0.0 && tt < 1.0/0.0 && tt < smallest_t) {
@@ -475,7 +506,7 @@ function postep() {
 				k.needs_recalc = true;
 				need_collision_recalc = true;
 			}
-			if ( (k.position[1]-k.radius <= -canvas.height/2.0 && k.velocity[1] < 0.0) || (canvas.height/2.0 <= k.position[1]+k.radius && k.velocity[1] > 0.0) ) {
+			if ( (k.position[1]-k.radius <= -canvas.height/2.0 && k.velocity[1] < 0.0) || (top_wall && canvas.height/2.0 <= k.position[1]+k.radius && k.velocity[1] > 0.0) ) {
 				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
 				wall_collisions++;
 				k.velocity[1] = -k.velocity[1];
