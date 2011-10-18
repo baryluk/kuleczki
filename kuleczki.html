@@ -389,8 +389,8 @@ function rysuj_kulki() {
 		var k1 = kulki[limit_i];
 		var k2 = kulki[limit_j];
 		ctx.fillStyle = 'rgb(255,0,0)';
-		ctx.moveTo(0.5*canvas.width + k1.position[0], 0.5*canvas.height + k1.position[1]);
-		ctx.lineTo(0.5*canvas.width + k2.position[0], 0.5*canvas.height + k2.position[1]);
+		ctx.moveTo(0.5*canvas.width + k1.position[0], 0.5*canvas.height - k1.position[1]);
+		ctx.lineTo(0.5*canvas.width + k2.position[0], 0.5*canvas.height - k2.position[1]);
 		ctx.stroke();
 		ctx.restore();
 		}
@@ -406,7 +406,8 @@ function rysuj_kulki() {
 			ctx.fillStyle = k.color;
 		}
 		ctx.beginPath();
-		ctx.arc(0.5*canvas.width + k.position[0], 0.5*canvas.height + k.position[1], k.radius, 0, Math.PI*2, true);
+		ctx.arc(0.5*canvas.width + k.position[0], 0.5*canvas.height - k.position[1], k.radius, 0, Math.PI*2, true);
+		// TODO: motion blur over last half-frame, so even in case of fast animation, we can see what is going on.
 		ctx.closePath();
 		ctx.fill();
 	}
@@ -422,7 +423,7 @@ function rysuj_kulki() {
 			} else {
 				ctx.fillStyle = 'rgb(0,0,0)';
 			}
-			ctx.fillText(""+i, 0.5*canvas.width + k.position[0] - 2.0, 0.5*canvas.height + k.position[1] + 3.0);
+			ctx.fillText(""+i, 0.5*canvas.width + k.position[0] - 2.0, 0.5*canvas.height - k.position[1] + 3.0);
 		}
 		ctx.restore();
 	}
