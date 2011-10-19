@@ -204,16 +204,11 @@ function collision() {
 
 //	calc_invariants();
 
-	// TODO: priority queue of collision times
-	// then retrivie minimial, retriview remaining 2*(n-2) balls pairs witch could interact with this two,
-	// and insert back to the queue updating times with new velocities
-
 	var current_collisions = 0;
 
 	var prev_limit_i = limit_i;
 	var prev_limit_j = limit_j;
 
-//	console.log("Obliczam nowe kolizje");
 	/* Iterate over all pairs of balls */
 	limit_i = -1;
 	limit_j = -1;
@@ -229,7 +224,6 @@ function collision() {
 
 		/* calculate collision with other balls */
 		for (var j = i+1; j < kulki.length; j++) {
-//			console.log("sprawdzam "+i+" z "+j);
 			var k2 = kulki[j];
 
 			/* solving:  || (k1.position + t*k1.velocity) - (k2.position + t*k2.velocity) ||^2 == (k1.radius+k2.radius)^2  */
