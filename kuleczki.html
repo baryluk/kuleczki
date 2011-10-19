@@ -80,8 +80,9 @@ function Kulka() {
 
 /* Parameters of simulation and global variables (awfull, I know) */
 
-var speed = 1.0/10;
-var K = 30; // number of balls
+var fps = 18;
+var speed = 1.0/fps;
+var K = 50; // number of balls
 var have_walls = true;
 var top_wall = true;
 var show_next_collision = true;
@@ -90,7 +91,7 @@ var draw_number = false; // show a number of the ball inside it
 var g = [0.0, -9.1]; // gravitation acceleration
 
 var pause = false; // if true, then simulation will be stoped (both real_t and sim_t will not incremenet).
-var inter_frame_delay = 50; // miliseconds
+var inter_frame_delay = 40; // miliseconds
 var sleep_after_collision = 0; // miliseconds
 
 var real_t_start; // wall clock time of the start of the simulation (in seconds). used to calculate real_t
@@ -473,10 +474,10 @@ function postep() {
 			inter_frame_delay = 0;
 		} else if (sim_t + 2*dt < time_scale*real_t) {
 			dt = time_scale*real_t-sim_t + 2.0*dt;
-			inter_frame_delay = 50; // fast-forward in case of lag
+			inter_frame_delay = 20; // fast-forward in case of lag
 			start_anim();
 		} else {
-			inter_frame_delay = 100;
+			inter_frame_delay = 150;
 			start_anim();
 		}
 */
@@ -492,7 +493,7 @@ function postep() {
 			inter_frame_delay = 0;
 			start_anim();
 		} else {
-			inter_frame_delay = 50;
+			inter_frame_delay = 80;
 			start_anim();
 		}
 
