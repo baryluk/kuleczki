@@ -676,6 +676,8 @@ function sim_init() {
 	wall_y1 = -canvas.height/2.0;
 	wall_y2 = canvas.height/2.0;
 
+	gravity = document.getElementById('gravity').checked;
+
 	/* Select initial balls at random, eventually retry, until they do not overlap.
 	 * If it also fails, make balls smaller, and retry again.
 	 * It will eventually find suitable initial conditions.
@@ -715,7 +717,7 @@ function sim_init() {
 Ekin:<input id='kinetic_energy' size='24' readonly>
 Egrav:<input id='potential_energy' size='24' readonly>
 E:<input id='energy' size='24' readonly>
-(E-E0)/E0:<input id='energy_diff' size='24' readonly>
+(E-E0)/E0:<input id='energy_diff' size='27' readonly>
 M:<input id='momentum' size='24' readonly>
 M-M0:<input id='momentum_diff' size='24' readonly>
 <br>
@@ -730,8 +732,11 @@ init_tries:<input id='init_tries' size='10'>
 init_min_r:<input id='min_r' size='10'>
 init_max_r:<input id='max_r' size='10'>
 init_max_v:<input id='max_v' size='10'>
-<input id='paused' type='checkbox' title='Pause'>
+pause:<input id='paused' type='checkbox' title='Pause'>
 <input id='b' type='button' value='Go'>
+gravity:<input id='gravity' type='checkbox' title='Gravity' checked='checked'>
+top_wall:<input id='top_wall' type='checkbox' title='Gravity'>
+walls:<input id='walls' type='checkbox' title='Gravity'>
 <br>
 limit_i:<input id='limit_i' size='4' readonly>
 limit_j:<input id='limit_j' size='4' readonly>
