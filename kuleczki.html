@@ -191,6 +191,10 @@ var initial_collisions = 1.0/0.0;
 /* Coordinates of bounding box of whole area. Walls .*/
 var wall_x1, wall_x2, wall_y1, wall_y2;
 
+var wall_coeff_x = 0.6; // reduction in v_x of ball after collition with wall
+var wall_coeff_y = 0.6; // ditto
+wall_coeff_x = wall_coeff_y = 1.0;
+
 var global_queue = new PriorityQueue();
 var walls_queue = new PriorityQueue();
 
@@ -521,6 +525,7 @@ function postep() {
 				k.velocity[0] = -k.velocity[0];
 				k.needs_recalc = true;
 				need_collision_recalc = true;
+				k.velocity[0] = wall_coeff_x*k.velocity[0];
 			}
 			if ( (k.position[1]-k.radius <= -canvas.height/2.0 && k.velocity[1] < 0.0) || (top_wall && canvas.height/2.0 <= k.position[1]+k.radius && k.velocity[1] > 0.0) ) {
 				//console.log("t="+sim_t+" - kolizja ze sciana, kulka "+i);
@@ -528,6 +533,7 @@ function postep() {
 				k.velocity[1] = -k.velocity[1];
 				k.needs_recalc = true;
 				need_collision_recalc = true;
+				k.velocity[1] = wall_coeff_y*k.velocity[1];
 			}
 			}
 		}
