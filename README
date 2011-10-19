@@ -66,6 +66,7 @@ TODO: Introduce inelasstic and imperfect collisions.
       Add graphs of velocity, energy and momenta distributions of all particles,
         and draw mediana/mean value in function of time.
         We can also fit Maxwell-Boltzman distributions to them.
+        We can also show distribution of time beetween collisions.
       Benchmark mode (predictable initial condition, predictable Math.random(),
         run with many balls, for a finite amount of real or simulation time,
         and measure various performance metrics, like fps, lag, number of collisions, etc.)
