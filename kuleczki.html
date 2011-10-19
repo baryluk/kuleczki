@@ -84,10 +84,12 @@ var fps = 18;
 var speed = 1.0/fps;
 var K = 50; // number of balls
 var have_walls = true;
-var top_wall = true;
+var top_wall = false;
+var inter_ball_colissions = true;
 var show_next_collision = true;
 var draw_interline = false; // black line connecting balls which will collide
 var draw_number = false; // show a number of the ball inside it
+var follow_particle = -1;
 var g = [0.0, -9.1]; // gravitation acceleration
 
 var pause = false; // if true, then simulation will be stoped (both real_t and sim_t will not incremenet).
@@ -137,7 +139,7 @@ function vec_mul(c, a) {
 }
 
 var g_half = vec_mul(0.5, g);
-var gravity = false;
+var gravity = true;
 
 /* Return square of a. Helper function */
 function sqr(a) { return a*a; }
