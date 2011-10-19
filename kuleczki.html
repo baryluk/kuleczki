@@ -199,7 +199,7 @@ var global_queue = new PriorityQueue();
 var walls_queue = new PriorityQueue();
 
 /* Calculate collisions, predict times of collisions, select first one. */
-function collision() {
+function initial_collision() {
 	document.getElementById('balls').value = K;
 
 //	calc_invariants();
@@ -367,7 +367,11 @@ function collision() {
 	document.getElementById('limit_j').value = limit_j;
 	document.getElementById('current_collisions').value = current_collisions;
 //	console.log("ostatecznie: limit_t="+limit_t+" (tj. t="+(limit_t+sim_t)+") limit_i="+limit_i+" limit_j="+limit_j);
-//	console.log("koniec predykcji kolizji");
+}
+
+function collision() {
+	gravity = document.getElementById('gravity').checked;
+	initial_collision();
 }
 
 /* Clear canvas (make it whole white) */
