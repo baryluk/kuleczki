@@ -90,9 +90,12 @@ function PriorityQueue() {
 	this.size = function () {
 		return this.queue.length;
 	};
-	this.add = function (key, value) {
-		this.queue.push({key:key, value:value});
+	this.add0 = function (kv) {
+		this.queue.push(kv);
 		this.sorted = false;
+	}
+	this.add = function (key, value) {
+		this.add0({key:key, value:value});
 	};
 	this.peek = function () {
 		this.sort();
