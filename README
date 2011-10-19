@@ -60,7 +60,7 @@ TODO: Introduce inelasstic and imperfect collisions.
         placing single ball, making sure center of the ball is outside of any existing ball,
         and making single added ball smaller and smaller). We can also allow initial overlap.
       Allow adding and removing (manual, random, last) balls even when simulation is running.
-      Make pause function work properly.
+      Simplify pause handling. It currently works, but is overcomplicated IMHO.
       Improve GUI (beside better collors, nicer layout, hiding some advanced fields by default,
         adding tooltips, allow automatically resizing canvas)
       Add graphs of velocity, energy and momenta distributions of all particles,
@@ -69,8 +69,6 @@ TODO: Introduce inelasstic and imperfect collisions.
       Benchmark mode (predictable initial condition, predictable Math.random(),
         run with many balls, for a finite amount of real or simulation time,
         and measure various performance metrics, like fps, lag, number of collisions, etc.)
-      Introduce gravitation (this will introduce polynomial of 4th order,
-        which can be still solved analitically or numerically, very easly).
       Introduce air resistance (in one dimmension it could be solved analitically,
          but in to dimenssions will need numerical solver)
       Implement time-step based simulation for comparission
