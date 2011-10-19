@@ -213,14 +213,99 @@ function initial_collision() {
 	limit_i = -1;
 	limit_j = -1;
 	var smallest_t = 1.0/0.0;
+
+	global_queue.clear();
+	walls_queue.clear();
+
 	var smallest_wall_t = 1.0/0.0;
+
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+
+		k.queue.clear();
+		k.queue.wall_t = 1.0/0.0;
+
+		/* Calculate collision with walls */
+		if (have_walls) {
+	//		if (prev_limit_i != i && prev_limit_j != -1) {
+			{
+				var t = 1.0/0.0;
+				var tt = 1.0/0.0;
+
+				/* solving:  k.position[0] + t*k.velocity[0] == wall_x2-k.radius  */
+				/* or in case of gravity, solving:  k.position[0] + t*k.velocity[0] + t*t*g_half[0] == wall_x2-k.radius  */
+
+				// right
+				t = (wall_x2-k.radius-k.position[0])/k.velocity[0];
+				if (k.velocity[0] > 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				// left
+				t = (wall_x1+k.radius-k.position[0])/k.velocity[0];
+				if (k.velocity[0] < 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+
+				// top
+				if (top_wall) {
+				t = (wall_y2-k.radius-k.position[1])/k.velocity[1];
+				if (k.velocity[1] > 0.0 && t > 0.0 && t < tt) {
+					tt = t;
+				}
+				}
+
+				// botom
+				if (gravity && g_half[1] != 0.0) {
+					var eq_a = g_half[1];
+					var eq_b = k.velocity[1];
+					var eq_c = (k.position[1]-k.radius-wall_y1);
+					var delta = eq_b*eq_b - 4.0*eq_a*eq_c;
+					if (delta >= 0) {
+						var sqrt_delta = Math.sqrt(delta);
+						var t1 = (-eq_b + sqrt_delta) / (2.0*eq_a);
+						t = t1;
+						// k.velocity[1] < 0.0 &&
+						var v = k.velocity[1] + t*g[1]; // velocity, at time of impact
+						if (v < 0.0 && t > 0.0 && t < tt) {
+							tt = t;
+						}
+						var t2 = (-eq_b - sqrt_delta) / (2.0*eq_a);
+						t = t2;
+						// k.velocity[1] < 0.0 &&
+						var v = k.velocity[1] + t*g[1]; // ditto
+						if (v < 0.0 && t > 0.0 && t < tt) {
+							tt = t;
+						}
+					}
+				} else {
+					t = (wall_y1+k.radius-k.position[1])/k.velocity[1];
+					if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
+						tt = t;
+					}
+				}
+
+				if (tt > 0.0 && tt < 1.0/0.0) {
+					k.queue.add(tt, [i,-1]);
+					k.queue.wall_t = tt;
+					walls_queue.add(tt, [i,-1]);
+					if (tt < smallest_wall_t) {
+						smallest_wall_t = tt;
+						smallest_t = tt;
+						limit_i = i;
+						limit_j = -1;
+					}
+				}
+			}
+		}
+	}
+
+	if (inter_ball_colissions) {
 	for (var i = 0; i < kulki.length; i++) {
 		var k1 = kulki[i];
 		if (!k1.needs_recalc) {
 			//continue;
 		}
-
-		k1.queue.clear();
 
 		/* calculate collision with other balls */
 		for (var j = i+1; j < kulki.length; j++) {
@@ -254,15 +339,18 @@ function initial_collision() {
 				continue;
 			}
 			//var delta_org = eq_b_org*eq_b_org - 4.0*eq_a*eq_c;
+			//var delta = delta_org;
 			var delta = eq_b*eq_b - eq_a*eq_c; // original delta divided by 4
 			if (delta < 0.0) {
 //				console.log("brak predykcja kolizji "+i+" z "+j+"  (ujemna delta)");
 				continue;
 			}
-			//var t1 = -0.5*(eq_b_org + Math.sqrt(delta_org)) / eq_a;
-			//var t2 = 0.5*(Math.sqrt(delta_org) - eq_b_org) / eq_a;
-			var t1 = -(eq_b + Math.sqrt(delta)) / eq_a;  // equivalent, because eq_b was already divided by 2 in assigment, and delta was divided by 4
-			var t2 = (Math.sqrt(delta) - eq_b) / eq_a;
+			//var sqrt_delta_org = Math.sqrt(delta_org);
+			var sqrt_delta = Math.sqrt(delta);
+			//var t1 = -0.5*(eq_b_org + sqrt_delta_org) / eq_a;
+			//var t2 = 0.5*(sqrt_delta_org - eq_b_org) / eq_a;
+			var t1 = -(eq_b + sqrt_delta) / eq_a;  // equivalent, because eq_b was already divided by 2 in assigment, and delta was divided by 4
+			var t2 = (sqrt_delta - eq_b) / eq_a;
 //			console.log("t1="+t1+" t2="+t2);
 			var t = -1.0;
 			if (t1 > 0.0 && t2 > 0.0) {
@@ -279,91 +367,37 @@ function initial_collision() {
 				}
 			}
 			if (t > 0.0) {
-//				console.log("predykcja kolizji "+i+" z "+j+" w limit_t="+t);
-				if (t < smallest_wall_t) {
+				if (t < k1.queue.wall_t && t < k2.queue.wall_t) {
 					k1.queue.add(t, [i,j]);
+					k2.queue.add(t, [j,i]);
 				}
-				if (t < smallest_t) {
+				if (t < smallest_t && t < smallest_wall_t) {
 					smallest_t = t;
 					limit_i = i;
 					limit_j = j;
-					// todo: calculate point of impact, update limit_position
-					//       before doing so check if point of impact is inside boundouaries of walls
 				}
 			} else {
 //				console.log("brak predykcja kolizji "+i+" z "+j+"  (ujemne rozwiazania)");
 			}
 		}
 
-		/* Calculate collision with walls */
-		if (have_walls) {
-			var k = k1;
-
-//			if (prev_limit_i != i && prev_limit_j != -1) {
-			{
-				var t = 1.0/0.0;
-				var tt = 1.0/0.0;
-
-				/* solving:  k.position[0] + t*k.velocity[0] == wall_x2-k.radius  */
-				/* or in case of gravity, solving:  k.position[0] + t*k.velocity[0] + t*t*g_half[0] == wall_x2-k.radius  */
-
-				// right
-				t = (wall_x2-k.radius-k.position[0])/k.velocity[0];
-				if (k.velocity[0] > 0.0 && t > 0.0 && t < tt) {
-					tt = t;
-				}
-
-				// left
-				t = (wall_x1+k.radius-k.position[0])/k.velocity[0];
-				if (k.velocity[0] < 0.0 && t > 0.0 && t < tt) {
-					tt = t;
-				}
-
-				// top
-				if (top_wall) {
-				t = (wall_y2-k.radius-k.position[1])/k.velocity[1];
-				if (k.velocity[1] > 0.0 && t > 0.0 && t < tt) {
-					tt = t;
-				}
-				}
-
-				// botom
-				t = (wall_y1+k.radius-k.position[1])/k.velocity[1];
-				if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
-					tt = t;
-				}
-				if (gravity && g_half[1] != 0.0) {
-					var eq_a = g_half[1];
-					var eq_b = k.velocity[1];
-					var eq_c = (k.position[1]-k.radius-wall_y1);
-					var delta = eq_b*eq_b - 4.0*eq_a*eq_c;
-					if (delta >= 0) {
-						var t1 = (-eq_b + Math.sqrt(delta)) / (2.0*eq_a);
-						t = t1;
-						if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
-							tt = t;
-						}
-						var t2 = (-eq_b - Math.sqrt(delta)) / (2.0*eq_a);
-						t = t2;
-						if (k.velocity[1] < 0.0 && t > 0.0 && t < tt) {
-							tt = t;
-						}
-					}
-				}
-
-				if (tt > 0.0 && tt < 1.0/0.0 && tt < smallest_t) {
-					smallest_t = tt;
-					limit_i = i;
-					limit_j = -1;
-				}
-			}
-		}
-
-
 		k1.needs_recalc = false;
 	}
+	}
+
+	for (var i = 0; i < kulki.length; i++) {
+		var k = kulki[i];
+		//var kv = k.queue.peek();
+		//if (kv !== undefined) {
+		//	global_queue.add0(kv);
+		//}
+	}
+
 	initial_collisions = current_collisions;
 	limit_t = smallest_t;
+	if (smallest_wall_t < limit_t) {
+		limit_t = smallest_wall_t;
+	}
 	document.getElementById('limit_i').value = limit_i;
 	document.getElementById('limit_j').value = limit_j;
 	document.getElementById('current_collisions').value = current_collisions;
