@@ -97,6 +97,7 @@ var real_t_start; // wall clock time of the start of the simulation (in seconds)
 var real_t = 0.0; // real time in seconds. It will increment in wall clock speed.
 var sim_t = 0.0; // simulation time in seconds. It should follow real_t as close as possible, pausing or fast-forwarding if nacassary.
 
+var time_scale = 1.0;
 var time_arrorw = 1.0;
 
 /* Array of all balls (in polish language, kulki is plural form of kulka which is diminutive of the word kula, which means ball. simply, small balls) */
@@ -467,11 +468,11 @@ function postep() {
 		//var dt = speed / max_v;
 
 /*
-		if (sim_t + 5*dt < real_t) {
-			dt = real_t-sim_t + 10.0*dt; // very fast-forward in case of lagging simulation
+		if (sim_t + 5*dt < time_scale*real_t) {
+			dt = time_scale*real_t-sim_t + 10.0*dt; // very fast-forward in case of lagging simulation
 			inter_frame_delay = 0;
-		} else if (sim_t + 2*dt < real_t) {
-			dt = real_t-sim_t + 2.0*dt;
+		} else if (sim_t + 2*dt < time_scale*real_t) {
+			dt = time_scale*real_t-sim_t + 2.0*dt;
 			inter_frame_delay = 50; // fast-forward in case of lag
 			start_anim();
 		} else {
@@ -479,7 +480,7 @@ function postep() {
 			start_anim();
 		}
 */
-		dt = real_t-sim_t + speed;
+		dt = time_scale*real_t-sim_t + speed;
 
 		if (limit_t < dt) {
 			dt = limit_t;
@@ -487,7 +488,7 @@ function postep() {
 		}
 		document.getElementById('last_dt').value = dt;
 
-		if (real_t-sim_t > limit_t) {
+		if (time_scale*real_t-sim_t > limit_t) {
 			inter_frame_delay = 0;
 			start_anim();
 		} else {
@@ -588,7 +589,7 @@ function postep() {
 	document.getElementById('ball_collisions').value = ball_collisions;
 	document.getElementById('limit_t').value = limit_t;
 	document.getElementById('sim_t').value = sim_t;
-	//document.getElementById('real_t_from_start').value = real_t;
+	//document.getElementById('real_t_from_start').value = time_scale*real_t;
 	document.getElementById('inter_frame_delay').value = inter_frame_delay;
 }
 
@@ -631,15 +632,15 @@ function start_anim(e) {
 			pause_compensation = previous_pause_compensation + (t - pause_begin_t)
 		}
 		real_t = t - real_t_start - pause_compensation;
-		lag_t = real_t - sim_t;
-		document.getElementById('real_t_from_start').value = real_t;
+		lag_t = time_scale*real_t - sim_t;
+		document.getElementById('real_t_from_start').value = time_scale*real_t;
 		document.getElementById('lag_t').value = lag_t;
 		if (pause) {
 			if (lag_t <= 0.01) {
 				return;
 			}
 		}
-		if (sim_t+0.01 > real_t) {
+		if (sim_t+0.01 > time_scale*real_t) {
 			return;
 		}
 		postep();
