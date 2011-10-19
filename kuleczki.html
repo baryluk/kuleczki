@@ -227,6 +227,7 @@ function initial_collision() {
 			var k2 = kulki[j];
 
 			/* solving:  || (k1.position + t*k1.velocity) - (k2.position + t*k2.velocity) ||^2 == (k1.radius+k2.radius)^2  */
+			/* if gravity is present, nothing, changes as both positions get g*t*t/2 part, which cancels out, if g is equal for both balls */
 
 			var diff_position = vec_diff(k1.position, k2.position);
 			var diff_velocity = vec_diff(k1.velocity, k2.velocity);
